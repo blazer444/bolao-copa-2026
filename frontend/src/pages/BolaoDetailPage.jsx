@@ -1,32 +1,36 @@
-import { useParams, Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useParams, Link, NavLink, Routes, Route, useLocation } from 'react-router-dom';
 import { useBolao, useRanking, usePalpites, useProximosJogos, useJogos } from '../hooks';
-import { useQueries } from '@tanstack/react-query';
-import { rankingService, palpiteService } from '../services';
 import { useAuth } from '../contexts/AuthContext';
 import { Trophy, Target, BarChart2, Users, Copy, CheckCircle, Clock, Swords, Users2, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// ── Cards de Destaque ─────────────────────────────────────
+import PalpitesPage from './PalpitesPage';
+import RankingPage from './RankingPage';
+import EstatisticasPage from './EstatisticasPage';
+import ParticipantesPage from './ParticipantesPage';
+import JogosPage from './JogosPage';
 
-function CardProximoJogo({ bolaoId, palpites = [] }) {
-  const { data: jogos = [] } = useJogos({ bolao_id: bolaoId });
-  const proximos = jogos
-    .filter(j => j.status === 'NAO_INICIADO' && new Date(j.data_hora) > new Date())
-    .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+// Todos os cards recebem dados já resolvidos via props — sem hooks próprios
+// para evitar violação das regras de hooks e bugs de dados undefined
 
-  const jogo = proximos[0];
-  if (!jogo) return (
+function CardProximoJogo({ jogos, palpites }) {
+  const agora = new Date();
+  const proximo = jogos
+    .filter(j => j.status === 'NAO_INICIADO' && new Date(j.data_hora) > agora)
+    .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora))[0];
+
+  if (!proximo) return (
     <div className="card flex flex-col gap-2">
-      <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
+      <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
         <Clock size={13} /> Próximo Jogo
-      </div>
+      </span>
       <p className="text-slate-500 text-sm">Nenhum jogo agendado</p>
     </div>
   );
 
-  const jaPalpitou = palpites.some(p => p.jogo_id === jogo.id);
+  const jaPalpitou = palpites.some(p => p.jogo_id === proximo.id);
 
   return (
     <div className="card flex flex-col gap-3">
@@ -40,12 +44,12 @@ function CardProximoJogo({ bolaoId, palpites = [] }) {
         }
       </div>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-sm text-white flex-1">{jogo.selecao_casa}</span>
-        <div className="text-center">
-          <p className="text-xs text-slate-500">{format(new Date(jogo.data_hora), "dd 'de' MMM", { locale: ptBR })}</p>
-          <p className="text-sm font-bold text-white">{format(new Date(jogo.data_hora), 'HH:mm')}</p>
+        <span className="font-semibold text-sm text-white flex-1">{proximo.selecao_casa}</span>
+        <div className="text-center flex-shrink-0">
+          <p className="text-xs text-slate-500">{format(new Date(proximo.data_hora), "dd 'de' MMM", { locale: ptBR })}</p>
+          <p className="text-sm font-bold text-white">{format(new Date(proximo.data_hora), 'HH:mm')}</p>
         </div>
-        <span className="font-semibold text-sm text-white flex-1 text-right">{jogo.selecao_fora}</span>
+        <span className="font-semibold text-sm text-white flex-1 text-right">{proximo.selecao_fora}</span>
       </div>
     </div>
   );
@@ -53,6 +57,7 @@ function CardProximoJogo({ bolaoId, palpites = [] }) {
 
 function CardSuaPosicao({ ranking, userId }) {
   const eu = ranking.find(r => r.usuario?.id === userId);
+
   if (!eu) return (
     <div className="card flex flex-col gap-2">
       <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
@@ -61,6 +66,7 @@ function CardSuaPosicao({ ranking, userId }) {
       <p className="text-slate-500 text-sm">Faça seu primeiro palpite!</p>
     </div>
   );
+
   return (
     <div className="card flex flex-col gap-2 border-primary-500/30 bg-primary-500/5">
       <span className="text-primary-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
@@ -83,6 +89,7 @@ function CardSuaPosicao({ ranking, userId }) {
 function CardLider({ ranking }) {
   const lider = ranking[0];
   if (!lider) return null;
+
   return (
     <div className="card flex flex-col gap-2 border-amber-500/20">
       <span className="text-amber-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
@@ -107,11 +114,11 @@ function CardLider({ ranking }) {
   );
 }
 
-function CardPendentes({ bolaoId, palpites = [] }) {
-  const { data: jogos = [] } = useJogos({ bolao_id: bolaoId });
+function CardPendentes({ bolaoId, jogos, palpites }) {
+  const agora = new Date();
   const pendentes = jogos.filter(j =>
     j.status === 'NAO_INICIADO' &&
-    new Date(j.data_hora) > new Date() &&
+    new Date(j.data_hora) > agora &&
     !palpites.some(p => p.jogo_id === j.id)
   );
 
@@ -121,13 +128,13 @@ function CardPendentes({ bolaoId, palpites = [] }) {
         <Target size={13} /> Palpites Pendentes
       </span>
       {pendentes.length === 0 ? (
-        <p className="text-green-400 text-sm font-medium flex items-center gap-1"><CheckCircle size={14} /> Tudo em dia!</p>
+        <p className="text-green-400 text-sm font-medium flex items-center gap-1">
+          <CheckCircle size={14} /> Tudo em dia!
+        </p>
       ) : (
         <div>
           <p className="text-2xl font-bold text-amber-400">{pendentes.length}</p>
-          <p className="text-xs text-slate-500">
-            {pendentes.length === 1 ? 'jogo sem palpite' : 'jogos sem palpite'}
-          </p>
+          <p className="text-xs text-slate-500">{pendentes.length === 1 ? 'jogo sem palpite' : 'jogos sem palpite'}</p>
           <Link to={`/boloes/${bolaoId}/palpites`} className="text-xs text-primary-400 hover:underline mt-1 inline-block">
             Palpitar agora →
           </Link>
@@ -137,11 +144,7 @@ function CardPendentes({ bolaoId, palpites = [] }) {
   );
 }
 
-// ── Cards Sociais ─────────────────────────────────────────
-
-function CardConsenso({ bolaoId }) {
-  const { data: jogos = [] } = useJogos({ bolao_id: bolaoId });
-  // Pega o jogo ao vivo ou mais recente encerrado com resultados
+function CardConsenso({ jogos, palpites }) {
   const jogoAtivo = jogos.find(j => j.status === 'AO_VIVO') || jogos.find(j => j.status === 'ENCERRADO');
 
   if (!jogoAtivo) return (
@@ -153,15 +156,7 @@ function CardConsenso({ bolaoId }) {
     </div>
   );
 
-  // Busca todos os palpites do bolão para esse jogo via endpoint do bolão
-  const { data: todosPalpites = [] } = useQueries({
-    queries: [{
-      queryKey: ['palpites-jogo', bolaoId, jogoAtivo.id],
-      queryFn: () => palpiteService.listar(bolaoId),
-    }]
-  })[0];
-
-  const palpitesJogo = todosPalpites.filter(p => p.jogo_id === jogoAtivo.id);
+  const palpitesJogo = palpites.filter(p => p.jogo_id === jogoAtivo.id);
   const total = palpitesJogo.length;
 
   if (total === 0) return (
@@ -169,7 +164,7 @@ function CardConsenso({ bolaoId }) {
       <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
         <Users2 size={13} /> Consenso da Galera
       </span>
-      <p className="text-xs text-slate-500 mb-1">{jogoAtivo.selecao_casa} × {jogoAtivo.selecao_fora}</p>
+      <p className="text-xs text-slate-400 font-medium mb-1">{jogoAtivo.selecao_casa} × {jogoAtivo.selecao_fora}</p>
       <p className="text-slate-500 text-sm">Nenhum palpite registrado</p>
     </div>
   );
@@ -177,8 +172,7 @@ function CardConsenso({ bolaoId }) {
   const vitCasa = palpitesJogo.filter(p => p.gols_casa > p.gols_fora).length;
   const empates = palpitesJogo.filter(p => p.gols_casa === p.gols_fora).length;
   const vitFora = palpitesJogo.filter(p => p.gols_casa < p.gols_fora).length;
-
-  const pct = (n) => Math.round((n / total) * 100);
+  const pct = n => Math.round((n / total) * 100);
 
   return (
     <div className="card flex flex-col gap-3">
@@ -191,16 +185,16 @@ function CardConsenso({ bolaoId }) {
       <p className="text-xs text-slate-400 font-medium">{jogoAtivo.selecao_casa} × {jogoAtivo.selecao_fora}</p>
       <div className="space-y-2">
         {[
-          { label: jogoAtivo.selecao_casa, pct: pct(vitCasa), color: 'bg-green-500' },
-          { label: 'Empate', pct: pct(empates), color: 'bg-slate-500' },
-          { label: jogoAtivo.selecao_fora, pct: pct(vitFora), color: 'bg-blue-500' },
-        ].map(({ label, pct: p, color }) => (
+          { label: jogoAtivo.selecao_casa, val: pct(vitCasa), color: 'bg-green-500' },
+          { label: 'Empate', val: pct(empates), color: 'bg-slate-500' },
+          { label: jogoAtivo.selecao_fora, val: pct(vitFora), color: 'bg-blue-500' },
+        ].map(({ label, val, color }) => (
           <div key={label}>
             <div className="flex justify-between text-xs text-slate-400 mb-1">
-              <span>{label}</span><span className="font-bold text-white">{p}%</span>
+              <span>{label}</span><span className="font-bold text-white">{val}%</span>
             </div>
             <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${p}%` }} />
+              <div className={`h-full ${color} rounded-full`} style={{ width: `${val}%` }} />
             </div>
           </div>
         ))}
@@ -226,7 +220,7 @@ function CardConfrontoLider({ ranking, userId }) {
       <div className="flex items-center gap-3">
         <div className="flex-1 text-center">
           <p className="text-xl font-bold text-primary-400">{eu.pontos_total}</p>
-          <p className="text-xs text-slate-500 truncate">Você</p>
+          <p className="text-xs text-slate-500">Você</p>
         </div>
         <div className="text-slate-700 font-bold text-lg">VS</div>
         <div className="flex-1 text-center">
@@ -238,7 +232,7 @@ function CardConfrontoLider({ ranking, userId }) {
         {diff === 0
           ? 'Empatados com o líder!'
           : diff < 0
-            ? <span>Você está <span className="text-red-400 font-semibold">{Math.abs(diff)} pts</span> atrás do líder — {acimaDe} {acimaDe === 1 ? 'pessoa' : 'pessoas'} na sua frente</span>
+            ? <span>Você está <span className="text-red-400 font-semibold">{Math.abs(diff)} pts</span> atrás — {acimaDe} {acimaDe === 1 ? 'pessoa' : 'pessoas'} na sua frente</span>
             : <span>Você está <span className="text-green-400 font-semibold">{diff} pts</span> à frente!</span>
         }
       </p>
@@ -252,9 +246,13 @@ export default function BolaoDetailPage() {
   const { id } = useParams();
   const location = useLocation();
   const { user } = useAuth();
+
   const { data: bolao, isLoading } = useBolao(id);
   const { data: ranking = [] } = useRanking(id);
   const { data: palpites = [] } = usePalpites(id);
+  const { data: jogos = [] } = useJogos();  // todos os jogos, sem filtro de bolão
+
+  const isSubPage = ![`/boloes/${id}`, `/boloes/${id}/`].includes(location.pathname);
 
   function copiarCodigo() {
     navigator.clipboard.writeText(bolao.codigo_convite);
@@ -271,7 +269,6 @@ export default function BolaoDetailPage() {
   );
 
   const isCriador = bolao.criador_id === user?.id;
-  const isSubPage = location.pathname !== `/boloes/${id}`;
 
   const tabs = [
     { to: `/boloes/${id}/palpites`, icon: Target, label: 'Palpites' },
@@ -321,18 +318,17 @@ export default function BolaoDetailPage() {
         </div>
       </div>
 
-      {/* Cards de destaque — só na página raiz do bolão */}
+      {/* Cards — só na raiz do bolão */}
       {!isSubPage && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <CardProximoJogo bolaoId={id} palpites={palpites} />
+            <CardProximoJogo jogos={jogos} palpites={palpites} />
             <CardSuaPosicao ranking={ranking} userId={user?.id} />
             <CardLider ranking={ranking} />
-            <CardPendentes bolaoId={id} palpites={palpites} />
+            <CardPendentes bolaoId={id} jogos={jogos} palpites={palpites} />
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <CardConsenso bolaoId={id} />
+            <CardConsenso jogos={jogos} palpites={palpites} />
             <CardConfrontoLider ranking={ranking} userId={user?.id} />
           </div>
         </>
@@ -358,11 +354,16 @@ export default function BolaoDetailPage() {
         ))}
       </div>
 
-      {/* Conteúdo da sub-rota — sempre renderizado */}
-      <Outlet />
-
-      {/* Prompt inicial — só aparece na raiz /boloes/:id */}
-      {!isSubPage && (
+      {/* Conteúdo da aba ou prompt */}
+      {isSubPage ? (
+        <Routes>
+          <Route path="palpites" element={<PalpitesPage />} />
+          <Route path="ranking" element={<RankingPage />} />
+          <Route path="estatisticas" element={<EstatisticasPage />} />
+          <Route path="participantes" element={<ParticipantesPage />} />
+          <Route path="jogos" element={<JogosPage />} />
+        </Routes>
+      ) : (
         <div className="card text-center py-8 text-slate-500">
           <Trophy size={28} className="mx-auto mb-2 opacity-30" />
           <p className="text-sm">Selecione uma aba acima para navegar</p>
