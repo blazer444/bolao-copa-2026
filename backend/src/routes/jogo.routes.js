@@ -12,5 +12,6 @@ router.get('/:id', JogoController.buscarPorId);
 
 // Sincronização com API de futebol (uso interno / cron)
 router.post('/sincronizar', JogoController.sincronizar);
+router.post('/sincronizar-resultados', JogoController.sincronizarResultadosHandler);
 
 export default router;

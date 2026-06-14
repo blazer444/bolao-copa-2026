@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase.js';
-import { sincronizarJogos } from '../services/football-api.service.js';
+import { sincronizarJogos, sincronizarResultados } from '../services/football-api.service.js';
 
 export async function listar(req, res, next) {
   try {
@@ -51,5 +51,12 @@ export async function sincronizar(req, res, next) {
   try {
     const count = await sincronizarJogos();
     res.json({ message: `${count} jogos sincronizados` });
+  } catch (err) { next(err); }
+}
+
+export async function sincronizarResultadosHandler(req, res, next) {
+  try {
+    await sincronizarResultados();
+    res.json({ message: 'Resultados sincronizados e pontuações recalculadas' });
   } catch (err) { next(err); }
 }
