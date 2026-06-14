@@ -1,5 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useProximosJogos, useBoloes } from '../hooks';
+import { useQueries } from '@tanstack/react-query';
+import { rankingService } from '../services';
 import { Link } from 'react-router-dom';
 import { Trophy, Calendar, Target, TrendingUp, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -48,6 +50,24 @@ export default function DashboardPage() {
   const { data: jogos = [], isLoading: jogosLoading } = useProximosJogos();
   const { data: boloes = [], isLoading: boloesLoading } = useBoloes();
 
+  // Busca estatísticas do usuário em cada bolão
+  const statsQueries = useQueries({
+    queries: boloes.map(b => ({
+      queryKey: ['stats', b.id, user?.id],
+      queryFn: () => rankingService.estatisticasUsuario(b.id, user.id),
+      enabled: !!user?.id && boloes.length > 0,
+    })),
+  });
+
+  // Soma palpites e pontos de todos os bolões
+  const totalPalpites = statsQueries.reduce((acc, q) => {
+    return acc + (q.data?.total_palpites || 0);
+  }, 0);
+  const totalPontos = statsQueries.reduce((acc, q) => {
+    return acc + (q.data?.pontos_total || 0);
+  }, 0);
+  const statsLoading = statsQueries.some(q => q.isLoading);
+
   return (
     <div className="space-y-8 animate-slide-up">
       {/* Header */}
@@ -61,10 +81,10 @@ export default function DashboardPage() {
       {/* Stats rápidos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: Trophy, label: 'Bolões', value: boloes.length, color: 'text-amber-400' },
-          { icon: Target, label: 'Palpites', value: '—', color: 'text-blue-400' },
-          { icon: TrendingUp, label: 'Pontos', value: '—', color: 'text-green-400' },
-          { icon: Calendar, label: 'Próximos', value: jogos.length, color: 'text-purple-400' },
+          { icon: Trophy, label: 'Bolões', value: boloesLoading ? '…' : boloes.length, color: 'text-amber-400' },
+          { icon: Target, label: 'Palpites', value: statsLoading ? '…' : totalPalpites, color: 'text-blue-400' },
+          { icon: TrendingUp, label: 'Pontos', value: statsLoading ? '…' : totalPontos, color: 'text-green-400' },
+          { icon: Calendar, label: 'Próximos', value: jogosLoading ? '…' : jogos.length, color: 'text-purple-400' },
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} className="card flex flex-col gap-2">
             <Icon size={18} className={color} />
