@@ -16,7 +16,7 @@ export function CadastroPage() {
     setLoading(true);
     try {
       await cadastro(form.nome, form.email, form.senha);
-      toast.success('Conta criada! Verifique seu email.');
+      toast.success('Conta criada com sucesso! Faça login para continuar.');
       navigate('/login');
     } catch (err) {
       toast.error(err.message || 'Erro ao criar conta');

@@ -42,18 +42,8 @@ export function AuthProvider({ children }) {
   }
 
   async function cadastro(nome, email, senha) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: senha,
-      options: { data: { nome } },
-    });
-    if (error) throw new Error(error.message);
-
-    // Cria perfil
-    if (data.user) {
-      await supabase.from('usuarios').insert({ id: data.user.id, nome, email });
-    }
-    return data;
+    const response = await api.post('/auth/cadastro', { nome, email, senha });
+    return response.data;
   }
 
   async function logout() {
