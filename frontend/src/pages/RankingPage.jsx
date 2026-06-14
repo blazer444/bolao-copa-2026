@@ -1,8 +1,51 @@
-import { useParams } from 'react-router-dom';
-import { useRanking, useBolao } from '../hooks';
+import { useParams, Link } from 'react-router-dom';
+import { useRanking, useBolao, useEvolucaoRanking } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
-import { Trophy, Medal, Share2, Copy } from 'lucide-react';
+import { Trophy, Medal, Share2, Copy, TrendingUp, Swords } from 'lucide-react';
 import toast from 'react-hot-toast';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
+
+const CORES = ['#f97316', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#ec4899', '#06b6d4', '#f43f5e'];
+
+function GraficoEvolucao({ bolaoId }) {
+  const { data, isLoading } = useEvolucaoRanking(bolaoId);
+
+  if (isLoading) return <div className="card animate-pulse h-64 bg-slate-800" />;
+  if (!data || !data.series?.length) return null;
+
+  return (
+    <div className="card">
+      <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+        <TrendingUp size={16} className="text-primary-400" />
+        Evolução da pontuação
+      </h3>
+      <ResponsiveContainer width="100%" height={260}>
+        <LineChart data={data.series}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <XAxis dataKey="rodada" tick={{ fill: '#94a3b8', fontSize: 10 }} interval={Math.ceil(data.series.length / 6)} />
+          <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
+          <Tooltip
+            contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+            labelStyle={{ color: '#f8fafc' }}
+          />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          {data.jogadores.map((nome, i) => (
+            <Line
+              key={nome}
+              type="monotone"
+              dataKey={nome}
+              stroke={CORES[i % CORES.length]}
+              strokeWidth={2}
+              dot={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 function PodiumIcon({ pos }) {
   if (pos === 1) return <Trophy size={20} className="text-amber-400" />;
@@ -85,6 +128,9 @@ export default function RankingPage() {
         </div>
       )}
 
+      {/* Gráfico de evolução */}
+      <GraficoEvolucao bolaoId={bolaoId} />
+
       {/* Ranking completo */}
       <div className="space-y-2">
         {ranking.map((item) => (
@@ -119,6 +165,16 @@ export default function RankingPage() {
               </p>
               <p className="text-xs text-slate-500">pts</p>
             </div>
+
+            {!item.sou_eu && user?.id && (
+              <Link
+                to={`/boloes/${bolaoId}/confronto/${user.id}/${item.usuario?.id}`}
+                className="text-slate-500 hover:text-primary-400 transition-colors p-1.5 flex-shrink-0"
+                title="Comparar com este jogador"
+              >
+                <Swords size={16} />
+              </Link>
+            )}
           </div>
         ))}
 

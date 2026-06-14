@@ -133,3 +133,57 @@ export async function criarEspecial(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * "Consenso da galera": placar mais palpitado pelos participantes
+ * de um bolão para um determinado jogo. Só revela após o jogo
+ * iniciar/encerrar OU se a query param incluirAntes=true.
+ */
+export async function consenso(req, res, next) {
+  try {
+    const { bolaoId, jogoId } = req.params;
+
+    const { data: jogo } = await supabase
+      .from('jogos').select('status, data_hora').eq('id', jogoId).single();
+
+    if (!jogo) return res.status(404).json({ error: 'Jogo não encontrado' });
+
+    const jogoComecou = jogo.status !== 'NAO_INICIADO' || new Date(jogo.data_hora) <= new Date();
+
+    if (!jogoComecou && req.query.incluirAntes !== 'true') {
+      return res.status(403).json({ error: 'Consenso disponível apenas após o início da partida' });
+    }
+
+    const { data: palpites, error } = await supabase
+      .from('palpites')
+      .select('gols_casa, gols_fora')
+      .eq('bolao_id', bolaoId)
+      .eq('jogo_id', jogoId);
+
+    if (error) throw new Error(error.message);
+
+    if (!palpites.length) {
+      return res.json({ total_palpites: 0, placares: [] });
+    }
+
+    const contagem = {};
+    for (const p of palpites) {
+      const key = `${p.gols_casa}x${p.gols_fora}`;
+      contagem[key] = (contagem[key] || 0) + 1;
+    }
+
+    const placares = Object.entries(contagem)
+      .map(([placar, qtd]) => {
+        const [gols_casa, gols_fora] = placar.split('x').map(Number);
+        return {
+          gols_casa,
+          gols_fora,
+          quantidade: qtd,
+          percentual: Math.round((qtd / palpites.length) * 100),
+        };
+      })
+      .sort((a, b) => b.quantidade - a.quantidade);
+
+    res.json({ total_palpites: palpites.length, placares });
+  } catch (err) { next(err); }
+}

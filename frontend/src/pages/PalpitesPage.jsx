@@ -1,10 +1,37 @@
 import { useParams } from 'react-router-dom';
-import { useJogos, usePalpites, useCriarPalpite, useAtualizarPalpite } from '../hooks';
+import { useJogos, usePalpites, useCriarPalpite, useAtualizarPalpite, useConsenso } from '../hooks';
 import { useBolao } from '../hooks';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Lock, CheckCircle } from 'lucide-react';
+import { Lock, CheckCircle, Users } from 'lucide-react';
+
+function ConsensoGalera({ bolaoId, jogoId, jogoComecou }) {
+  const { data, isLoading } = useConsenso(bolaoId, jogoId, jogoComecou);
+
+  if (!jogoComecou) return null;
+  if (isLoading) return <p className="text-xs text-slate-500">Carregando consenso...</p>;
+  if (!data || data.total_palpites === 0) return null;
+
+  const top3 = data.placares.slice(0, 3);
+
+  return (
+    <div className="border-t border-slate-800 pt-3 space-y-1.5">
+      <p className="text-xs text-slate-500 flex items-center gap-1.5">
+        <Users size={12} /> Consenso da galera ({data.total_palpites} palpite{data.total_palpites > 1 ? 's' : ''})
+      </p>
+      {top3.map((p, i) => (
+        <div key={i} className="flex items-center gap-2 text-xs">
+          <span className="font-mono font-semibold text-slate-300 w-10">{p.gols_casa} x {p.gols_fora}</span>
+          <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-primary-500 rounded-full" style={{ width: `${p.percentual}%` }} />
+          </div>
+          <span className="text-slate-500 w-10 text-right">{p.percentual}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function PalpiteCard({ jogo, palpite, bolaoId }) {
   const criar = useCriarPalpite();
@@ -119,6 +146,8 @@ function PalpiteCard({ jogo, palpite, bolaoId }) {
           <Lock size={11} /> Palpites encerrados
         </p>
       )}
+
+      <ConsensoGalera bolaoId={bolaoId} jogoId={jogo.id} jogoComecou={bloqueado} />
     </div>
   );
 }

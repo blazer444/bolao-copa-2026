@@ -14,4 +14,7 @@ router.put('/:id', PalpiteController.atualizar);
 router.get('/especiais/bolao/:bolaoId', PalpiteController.listarEspeciais);
 router.post('/especiais', PalpiteController.criarEspecial);
 
+// Consenso da galera
+router.get('/consenso/bolao/:bolaoId/jogo/:jogoId', PalpiteController.consenso);
+
 export default router;

@@ -10,6 +10,8 @@ router.get('/publico/:bolaoId', RankingController.publico);
 router.use(authenticate);
 
 router.get('/bolao/:bolaoId', RankingController.porBolao);
+router.get('/bolao/:bolaoId/evolucao', RankingController.evolucao);
 router.get('/bolao/:bolaoId/usuario/:usuarioId', RankingController.estatisticasUsuario);
+router.get('/bolao/:bolaoId/confronto/:usuarioA/:usuarioB', RankingController.confrontoDireto);
 
 export default router;
