@@ -132,15 +132,32 @@ export async function removerParticipante(bolaoId, usuarioId, solicitanteId) {
 }
 
 export async function listarParticipantes(bolaoId) {
-  const { data, error } = await supabase
+  const { data: participantes, error } = await supabase
     .from('participantes')
     .select(`
       joined_at,
-      usuarios (id, nome, avatar_url),
-      pontuacoes!left (pontos_total, total_palpites)
+      usuarios (id, nome, avatar_url)
     `)
     .eq('bolao_id', bolaoId);
 
   if (error) throw new Error(error.message);
-  return data;
-};
+
+  const { data: pontuacoes } = await supabase
+    .from('pontuacoes')
+    .select('usuario_id, pontos_total, total_palpites')
+    .eq('bolao_id', bolaoId);
+
+  const pontuacaoMap = Object.fromEntries(
+    (pontuacoes || []).map(p => [p.usuario_id, p])
+  );
+
+  return participantes.map(p => ({
+    ...p,
+    pontuacoes: pontuacaoMap[p.usuarios?.id]
+      ? [{
+        pontos_total: pontuacaoMap[p.usuarios.id].pontos_total,
+        total_palpites: pontuacaoMap[p.usuarios.id].total_palpites,
+      }]
+      : [],
+  }));
+}
