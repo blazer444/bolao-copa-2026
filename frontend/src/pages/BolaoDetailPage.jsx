@@ -358,10 +358,11 @@ export default function BolaoDetailPage() {
         ))}
       </div>
 
-      {/* Conteúdo da sub-rota ou prompt inicial */}
-      {isSubPage ? (
-        <Outlet />
-      ) : (
+      {/* Conteúdo da sub-rota — sempre renderizado */}
+      <Outlet />
+
+      {/* Prompt inicial — só aparece na raiz /boloes/:id */}
+      {!isSubPage && (
         <div className="card text-center py-8 text-slate-500">
           <Trophy size={28} className="mx-auto mb-2 opacity-30" />
           <p className="text-sm">Selecione uma aba acima para navegar</p>
