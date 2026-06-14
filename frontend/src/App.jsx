@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
+// Layouts
 import AppLayout from './components/layout/AppLayout';
 
+// Pages
 import LoginPage from './pages/LoginPage';
 import CadastroPage from './pages/CadastroPage';
 import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
@@ -47,16 +49,12 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="boloes" element={<BolaoListPage />} />
             <Route path="boloes/novo" element={<CriarBolaoPage />} />
-
-            {/* BolaoDetailPage como pai, sub-rotas como filhos via Outlet */}
-            <Route path="boloes/:id" element={<BolaoDetailPage />}>
-              <Route path="jogos" element={<JogosPage />} />
-              <Route path="palpites" element={<PalpitesPage />} />
-              <Route path="ranking" element={<RankingPage />} />
-              <Route path="estatisticas" element={<EstatisticasPage />} />
-              <Route path="participantes" element={<ParticipantesPage />} />
-            </Route>
-
+            <Route path="boloes/:id" element={<BolaoDetailPage />} />
+            <Route path="boloes/:id/jogos" element={<JogosPage />} />
+            <Route path="boloes/:id/palpites" element={<PalpitesPage />} />
+            <Route path="boloes/:id/ranking" element={<RankingPage />} />
+            <Route path="boloes/:id/estatisticas" element={<EstatisticasPage />} />
+            <Route path="boloes/:id/participantes" element={<ParticipantesPage />} />
             <Route path="perfil" element={<PerfilPage />} />
           </Route>
 
