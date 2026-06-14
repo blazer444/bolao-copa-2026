@@ -129,6 +129,12 @@ export async function removerParticipante(bolaoId, usuarioId, solicitanteId) {
     .delete()
     .eq('bolao_id', bolaoId)
     .eq('usuario_id', usuarioId);
+
+  // Remove também da tabela de pontuações para sair do ranking
+  await supabase.from('pontuacoes')
+    .delete()
+    .eq('bolao_id', bolaoId)
+    .eq('usuario_id', usuarioId);
 }
 
 export async function listarParticipantes(bolaoId) {
