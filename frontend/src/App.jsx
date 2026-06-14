@@ -18,6 +18,7 @@ import RankingPage from './pages/RankingPage';
 import RankingPublicoPage from './pages/RankingPublicoPage';
 import EstatisticasPage from './pages/EstatisticasPage';
 import PerfilPage from './pages/PerfilPage';
+import ParticipantesPage from './pages/ParticipantesPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="boloes/:id/palpites" element={<PalpitesPage />} />
             <Route path="boloes/:id/ranking" element={<RankingPage />} />
             <Route path="boloes/:id/estatisticas" element={<EstatisticasPage />} />
+            <Route path="boloes/:id/participantes" element={<ParticipantesPage />} />
             <Route path="perfil" element={<PerfilPage />} />
           </Route>
 
