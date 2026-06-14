@@ -28,6 +28,7 @@ export const palpiteService = {
   atualizar: (id, dados) => api.put(`/palpites/${id}`, dados).then(r => r.data),
   especiais: (bolaoId) => api.get(`/palpites/especiais/bolao/${bolaoId}`).then(r => r.data),
   criarEspecial: (dados) => api.post('/palpites/especiais', dados).then(r => r.data),
+  consenso: (bolaoId, jogoId) => api.get(`/palpites/consenso/bolao/${bolaoId}/jogo/${jogoId}`).then(r => r.data),
 };
 
 // ── Ranking ───────────────────────────────────────────────
@@ -36,6 +37,9 @@ export const rankingService = {
   publico: (bolaoId) => api.get(`/ranking/publico/${bolaoId}`).then(r => r.data),
   estatisticasUsuario: (bolaoId, usuarioId) =>
     api.get(`/ranking/bolao/${bolaoId}/usuario/${usuarioId}`).then(r => r.data),
+  evolucao: (bolaoId) => api.get(`/ranking/bolao/${bolaoId}/evolucao`).then(r => r.data),
+  confrontoDireto: (bolaoId, usuarioA, usuarioB) =>
+    api.get(`/ranking/bolao/${bolaoId}/confronto/${usuarioA}/${usuarioB}`).then(r => r.data),
 };
 
 // ── Usuário ───────────────────────────────────────────────

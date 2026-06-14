@@ -102,3 +102,27 @@ export function useEstatisticasUsuario(bolaoId, usuarioId) {
     enabled: !!bolaoId && !!usuarioId,
   });
 }
+
+export function useConsenso(bolaoId, jogoId, jogoComecou) {
+  return useQuery({
+    queryKey: ['consenso', bolaoId, jogoId],
+    queryFn: () => palpiteService.consenso(bolaoId, jogoId),
+    enabled: !!bolaoId && !!jogoId && !!jogoComecou,
+  });
+}
+
+export function useEvolucaoRanking(bolaoId) {
+  return useQuery({
+    queryKey: ['evolucao', bolaoId],
+    queryFn: () => rankingService.evolucao(bolaoId),
+    enabled: !!bolaoId,
+  });
+}
+
+export function useConfrontoDireto(bolaoId, usuarioA, usuarioB) {
+  return useQuery({
+    queryKey: ['confronto', bolaoId, usuarioA, usuarioB],
+    queryFn: () => rankingService.confrontoDireto(bolaoId, usuarioA, usuarioB),
+    enabled: !!bolaoId && !!usuarioA && !!usuarioB && usuarioA !== usuarioB,
+  });
+}
