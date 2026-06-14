@@ -1,33 +1,277 @@
-import { useParams, Link, NavLink } from 'react-router-dom';
-import { useBolao } from '../hooks';
+import { useParams, Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useBolao, useRanking, usePalpites, useProximosJogos, useJogos } from '../hooks';
+import { useQueries } from '@tanstack/react-query';
+import { rankingService, palpiteService } from '../services';
 import { useAuth } from '../contexts/AuthContext';
-import { Trophy, Target, BarChart2, Users, Copy } from 'lucide-react';
+import { Trophy, Target, BarChart2, Users, Copy, CheckCircle, Clock, Swords, Users2, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+// ── Cards de Destaque ─────────────────────────────────────
+
+function CardProximoJogo({ bolaoId, palpites = [] }) {
+  const { data: jogos = [] } = useJogos({ bolao_id: bolaoId });
+  const proximos = jogos
+    .filter(j => j.status === 'NAO_INICIADO' && new Date(j.data_hora) > new Date())
+    .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+
+  const jogo = proximos[0];
+  if (!jogo) return (
+    <div className="card flex flex-col gap-2">
+      <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
+        <Clock size={13} /> Próximo Jogo
+      </div>
+      <p className="text-slate-500 text-sm">Nenhum jogo agendado</p>
+    </div>
+  );
+
+  const jaPalpitou = palpites.some(p => p.jogo_id === jogo.id);
+
+  return (
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+          <Clock size={13} /> Próximo Jogo
+        </span>
+        {jaPalpitou
+          ? <span className="flex items-center gap-1 text-green-400 text-xs font-medium"><CheckCircle size={12} /> Palpitou</span>
+          : <span className="text-amber-400 text-xs font-medium">⚠ Sem palpite</span>
+        }
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-sm text-white flex-1">{jogo.selecao_casa}</span>
+        <div className="text-center">
+          <p className="text-xs text-slate-500">{format(new Date(jogo.data_hora), "dd 'de' MMM", { locale: ptBR })}</p>
+          <p className="text-sm font-bold text-white">{format(new Date(jogo.data_hora), 'HH:mm')}</p>
+        </div>
+        <span className="font-semibold text-sm text-white flex-1 text-right">{jogo.selecao_fora}</span>
+      </div>
+    </div>
+  );
+}
+
+function CardSuaPosicao({ ranking, userId }) {
+  const eu = ranking.find(r => r.usuario?.id === userId);
+  if (!eu) return (
+    <div className="card flex flex-col gap-2">
+      <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <TrendingUp size={13} /> Sua Posição
+      </span>
+      <p className="text-slate-500 text-sm">Faça seu primeiro palpite!</p>
+    </div>
+  );
+  return (
+    <div className="card flex flex-col gap-2 border-primary-500/30 bg-primary-500/5">
+      <span className="text-primary-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <TrendingUp size={13} /> Sua Posição
+      </span>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-3xl font-display text-white">{eu.posicao}°</p>
+          <p className="text-xs text-slate-500">{eu.total_palpites} palpites feitos</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-primary-400">{eu.pontos_total}</p>
+          <p className="text-xs text-slate-500">pontos</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardLider({ ranking }) {
+  const lider = ranking[0];
+  if (!lider) return null;
+  return (
+    <div className="card flex flex-col gap-2 border-amber-500/20">
+      <span className="text-amber-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <Trophy size={13} /> Líder do Bolão
+      </span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-amber-400">
+            {lider.usuario?.nome?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <p className="font-semibold text-white text-sm">{lider.usuario?.nome}</p>
+            <p className="text-xs text-slate-500">{lider.acertos_placar_exato} placares exatos</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-amber-400">{lider.pontos_total}</p>
+          <p className="text-xs text-slate-500">pontos</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardPendentes({ bolaoId, palpites = [] }) {
+  const { data: jogos = [] } = useJogos({ bolao_id: bolaoId });
+  const pendentes = jogos.filter(j =>
+    j.status === 'NAO_INICIADO' &&
+    new Date(j.data_hora) > new Date() &&
+    !palpites.some(p => p.jogo_id === j.id)
+  );
+
+  return (
+    <div className={`card flex flex-col gap-2 ${pendentes.length > 0 ? 'border-amber-500/20' : ''}`}>
+      <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <Target size={13} /> Palpites Pendentes
+      </span>
+      {pendentes.length === 0 ? (
+        <p className="text-green-400 text-sm font-medium flex items-center gap-1"><CheckCircle size={14} /> Tudo em dia!</p>
+      ) : (
+        <div>
+          <p className="text-2xl font-bold text-amber-400">{pendentes.length}</p>
+          <p className="text-xs text-slate-500">
+            {pendentes.length === 1 ? 'jogo sem palpite' : 'jogos sem palpite'}
+          </p>
+          <Link to={`/boloes/${bolaoId}/palpites`} className="text-xs text-primary-400 hover:underline mt-1 inline-block">
+            Palpitar agora →
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Cards Sociais ─────────────────────────────────────────
+
+function CardConsenso({ bolaoId }) {
+  const { data: jogos = [] } = useJogos({ bolao_id: bolaoId });
+  // Pega o jogo ao vivo ou mais recente encerrado com resultados
+  const jogoAtivo = jogos.find(j => j.status === 'AO_VIVO') || jogos.find(j => j.status === 'ENCERRADO');
+
+  if (!jogoAtivo) return (
+    <div className="card flex flex-col gap-2">
+      <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <Users2 size={13} /> Consenso da Galera
+      </span>
+      <p className="text-slate-500 text-sm">Nenhum jogo em andamento</p>
+    </div>
+  );
+
+  // Busca todos os palpites do bolão para esse jogo via endpoint do bolão
+  const { data: todosPalpites = [] } = useQueries({
+    queries: [{
+      queryKey: ['palpites-jogo', bolaoId, jogoAtivo.id],
+      queryFn: () => palpiteService.listar(bolaoId),
+    }]
+  })[0];
+
+  const palpitesJogo = todosPalpites.filter(p => p.jogo_id === jogoAtivo.id);
+  const total = palpitesJogo.length;
+
+  if (total === 0) return (
+    <div className="card flex flex-col gap-2">
+      <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <Users2 size={13} /> Consenso da Galera
+      </span>
+      <p className="text-xs text-slate-500 mb-1">{jogoAtivo.selecao_casa} × {jogoAtivo.selecao_fora}</p>
+      <p className="text-slate-500 text-sm">Nenhum palpite registrado</p>
+    </div>
+  );
+
+  const vitCasa = palpitesJogo.filter(p => p.gols_casa > p.gols_fora).length;
+  const empates = palpitesJogo.filter(p => p.gols_casa === p.gols_fora).length;
+  const vitFora = palpitesJogo.filter(p => p.gols_casa < p.gols_fora).length;
+
+  const pct = (n) => Math.round((n / total) * 100);
+
+  return (
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+          <Users2 size={13} /> Consenso da Galera
+        </span>
+        <span className="text-xs text-slate-600">{total} palpites</span>
+      </div>
+      <p className="text-xs text-slate-400 font-medium">{jogoAtivo.selecao_casa} × {jogoAtivo.selecao_fora}</p>
+      <div className="space-y-2">
+        {[
+          { label: jogoAtivo.selecao_casa, pct: pct(vitCasa), color: 'bg-green-500' },
+          { label: 'Empate', pct: pct(empates), color: 'bg-slate-500' },
+          { label: jogoAtivo.selecao_fora, pct: pct(vitFora), color: 'bg-blue-500' },
+        ].map(({ label, pct: p, color }) => (
+          <div key={label}>
+            <div className="flex justify-between text-xs text-slate-400 mb-1">
+              <span>{label}</span><span className="font-bold text-white">{p}%</span>
+            </div>
+            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${p}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CardConfrontoLider({ ranking, userId }) {
+  const eu = ranking.find(r => r.usuario?.id === userId);
+  const lider = ranking[0];
+
+  if (!eu || !lider || eu.usuario?.id === lider.usuario?.id) return null;
+
+  const diff = eu.pontos_total - lider.pontos_total;
+  const acimaDe = ranking.filter(r => r.pontos_total > eu.pontos_total).length;
+
+  return (
+    <div className="card flex flex-col gap-3">
+      <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
+        <Swords size={13} /> Confronto com o Líder
+      </span>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 text-center">
+          <p className="text-xl font-bold text-primary-400">{eu.pontos_total}</p>
+          <p className="text-xs text-slate-500 truncate">Você</p>
+        </div>
+        <div className="text-slate-700 font-bold text-lg">VS</div>
+        <div className="flex-1 text-center">
+          <p className="text-xl font-bold text-amber-400">{lider.pontos_total}</p>
+          <p className="text-xs text-slate-500 truncate">{lider.usuario?.nome?.split(' ')[0]}</p>
+        </div>
+      </div>
+      <p className="text-center text-xs text-slate-500">
+        {diff === 0
+          ? 'Empatados com o líder!'
+          : diff < 0
+            ? <span>Você está <span className="text-red-400 font-semibold">{Math.abs(diff)} pts</span> atrás do líder — {acimaDe} {acimaDe === 1 ? 'pessoa' : 'pessoas'} na sua frente</span>
+            : <span>Você está <span className="text-green-400 font-semibold">{diff} pts</span> à frente!</span>
+        }
+      </p>
+    </div>
+  );
+}
+
+// ── Página Principal ──────────────────────────────────────
 
 export default function BolaoDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
   const { user } = useAuth();
   const { data: bolao, isLoading } = useBolao(id);
+  const { data: ranking = [] } = useRanking(id);
+  const { data: palpites = [] } = usePalpites(id);
 
   function copiarCodigo() {
     navigator.clipboard.writeText(bolao.codigo_convite);
     toast.success('Código copiado!');
   }
 
-  if (isLoading) {
-    return <div className="card animate-pulse h-64 bg-slate-800" />;
-  }
+  if (isLoading) return <div className="card animate-pulse h-64 bg-slate-800" />;
 
-  if (!bolao) {
-    return (
-      <div className="card text-center py-16 text-slate-500">
-        <p>Bolão não encontrado</p>
-        <Link to="/boloes" className="text-primary-400 hover:underline mt-2 inline-block">Voltar</Link>
-      </div>
-    );
-  }
+  if (!bolao) return (
+    <div className="card text-center py-16 text-slate-500">
+      <p>Bolão não encontrado</p>
+      <Link to="/boloes" className="text-primary-400 hover:underline mt-2 inline-block">Voltar</Link>
+    </div>
+  );
 
   const isCriador = bolao.criador_id === user?.id;
+  const isSubPage = location.pathname !== `/boloes/${id}`;
 
   const tabs = [
     { to: `/boloes/${id}/palpites`, icon: Target, label: 'Palpites' },
@@ -51,7 +295,6 @@ export default function BolaoDetailPage() {
             <h1 className="text-2xl font-bold text-white truncate">{bolao.nome}</h1>
             {bolao.descricao && <p className="text-slate-400 mt-2 text-sm">{bolao.descricao}</p>}
           </div>
-
           <div className="flex-shrink-0 text-right">
             <p className="text-xs text-slate-500 mb-1">Código de convite</p>
             <button
@@ -63,8 +306,6 @@ export default function BolaoDetailPage() {
             </button>
           </div>
         </div>
-
-        {/* Tabela de pontuação */}
         <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-4 gap-3 text-center text-xs">
           {[
             { label: 'Vencedor', pts: bolao.pts_acertou_vencedor },
@@ -79,6 +320,23 @@ export default function BolaoDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Cards de destaque — só na página raiz do bolão */}
+      {!isSubPage && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardProximoJogo bolaoId={id} palpites={palpites} />
+            <CardSuaPosicao ranking={ranking} userId={user?.id} />
+            <CardLider ranking={ranking} />
+            <CardPendentes bolaoId={id} palpites={palpites} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardConsenso bolaoId={id} />
+            <CardConfrontoLider ranking={ranking} userId={user?.id} />
+          </div>
+        </>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-slate-800 -mb-2">
@@ -100,11 +358,15 @@ export default function BolaoDetailPage() {
         ))}
       </div>
 
-      {/* Instrução inicial */}
-      <div className="card text-center py-10 text-slate-500">
-        <Trophy size={32} className="mx-auto mb-3 opacity-30" />
-        <p>Selecione uma aba acima para navegar</p>
-      </div>
+      {/* Conteúdo da sub-rota ou prompt inicial */}
+      {isSubPage ? (
+        <Outlet />
+      ) : (
+        <div className="card text-center py-8 text-slate-500">
+          <Trophy size={28} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Selecione uma aba acima para navegar</p>
+        </div>
+      )}
     </div>
   );
 }
