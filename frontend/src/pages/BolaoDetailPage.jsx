@@ -145,7 +145,12 @@ function CardPendentes({ bolaoId, jogos, palpites }) {
 }
 
 function CardConsenso({ jogos, palpites }) {
-  const jogoAtivo = jogos.find(j => j.status === 'AO_VIVO') || jogos.find(j => j.status === 'ENCERRADO');
+  // Prioriza jogo ao vivo; se não houver, pega o último encerrado por data
+  const jogoAtivo =
+    jogos.find(j => j.status === 'AO_VIVO') ||
+    jogos
+      .filter(j => j.status === 'ENCERRADO')
+      .sort((a, b) => new Date(b.data_hora) - new Date(a.data_hora))[0];
 
   if (!jogoAtivo) return (
     <div className="card flex flex-col gap-2">
